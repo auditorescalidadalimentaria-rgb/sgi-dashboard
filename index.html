@@ -583,17 +583,32 @@ let tabActiva = "liberacion";
 async function cargarDatos() {
   setStatus("Actualizando...", false);
   try {
-    const resp = await fetch(API_URL);
-    const data = await resp.json();
+    const resp = await fetch(API_URL + "?callback=_cb", {
+      method: "GET",
+      redirect: "follow"
+    });
+    const text = await resp.text();
+    // Limpiar si viene como JSONP
+    const clean = text.replace(/^_cb\(/, '').replace(/\);?\s*$/, '');
+    const data = JSON.parse(clean);
     datosGlobales = data;
     setStatus("Datos actualizados · " + new Date().toLocaleTimeString('es-AR'), true);
     renderTodo();
   } catch(e) {
-    setStatus("Error al conectar", false);
-    document.getElementById('kpiGrid').innerHTML = '<div class="empty">⚠️ No se pudo conectar con la fuente de datos.<br>Verificá que la Web App esté publicada correctamente.</div>';
-    document.getElementById('chartsGrid').innerHTML = '';
-    document.getElementById('timelineCard').innerHTML = '';
-    document.getElementById('tableWrap').innerHTML = '';
+    // Intentar con proxy CORS
+    try {
+      const resp2 = await fetch("https://corsproxy.io/?" + encodeURIComponent(API_URL));
+      const data2 = await resp2.json();
+      datosGlobales = data2;
+      setStatus("Datos actualizados · " + new Date().toLocaleTimeString('es-AR'), true);
+      renderTodo();
+    } catch(e2) {
+      setStatus("Error al conectar", false);
+      document.getElementById('kpiGrid').innerHTML = '<div class="empty">⚠️ No se pudo conectar con la fuente de datos.<br>Verificá que la Web App esté publicada correctamente.</div>';
+      document.getElementById('chartsGrid').innerHTML = '';
+      document.getElementById('timelineCard').innerHTML = '';
+      document.getElementById('tableWrap').innerHTML = '';
+    }
   }
 }
 
