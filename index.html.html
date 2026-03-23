@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGI — Dashboard de Registros</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c14;
+    --surface: #0d1420;
+    --surface2: #111927;
+    --border: #1e2d42;
+    --accent: #00d4ff;
+    --accent2: #0077ff;
+    --green: #00e676;
+    --red: #ff3d5a;
+    --yellow: #ffd740;
+    --text: #e8f0fe;
+    --muted: #5a7a9a;
+    --glow: 0 0 20px rgba(0,212,255,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-area h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+
+  .logo-area p {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* FILTRO DE PERÍODO */
+  .filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filters label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .filters select, .filters input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .filters select:hover, .filters input:hover {
+    border-color: var(--accent);
+  }
+
+  .btn-refresh {
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border: none;
+    color: #000;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .btn-refresh:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-refresh:active { transform: translateY(0); }
+
+  /* SECCIÓN TÍTULO */
+  .section-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .kpi-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--glow);
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+  }
+
+  .kpi-label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .kpi-icon {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    font-size: 22px;
+    opacity: 0.2;
+  }
+
+  /* CHARTS GRID */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .chart-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }
+
+  .chart-title span {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* COMPLIANCE BAR */
+  .compliance-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .compliance-item {}
+
+  .compliance-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 5px;
+    color: var(--text);
+  }
+
+  .compliance-pct {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+  }
+
+  .bar-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+  }
+
+  .bar-fill.low { background: linear-gradient(90deg, #ff3d5a, #ff6b6b); }
+  .bar-fill.mid { background: linear-gradient(90deg, var(--yellow), #ffb300); }
+
+  /* DONUT CHART SVG */
+  .donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .donut-svg { flex-shrink: 0; }
+
+  .donut-legend { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-val {
+    margin-left: auto;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  /* RESUMEN POR PERÍODO */
+  .timeline-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 28px;
+  }
+
+  .timeline-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 80px;
+    margin-top: 10px;
+  }
+
+  .t-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .t-bar {
+    width: 100%;
+    background: linear-gradient(180deg, var(--accent), var(--accent2));
+    border-radius: 3px 3px 0 0;
+    transition: height 0.8s cubic-bezier(0.4,0,0.2,1);
+    min-height: 2px;
+    opacity: 0.8;
+  }
+
+  .t-label {
+    font-size: 9px;
+    color: var(--muted);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .t-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    color: var(--accent);
+  }
+
+  /* TABLA */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+
+  .table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-header h3 {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .tab-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tab-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .tab-btn.active, .tab-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.05);
+  }
+
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  thead tr {
+    background: var(--surface2);
+  }
+
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: rgba(0,212,255,0.03); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-c { background: rgba(0,230,118,0.15); color: var(--green); }
+  .badge-nc { background: rgba(255,61,90,0.15); color: var(--red); }
+
+  /* LOADING */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: var(--muted);
+    font-size: 13px;
+    gap: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .logo-area h1 { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-area">
+      <h1>SGI · DASHBOARD</h1>
+      <p>Sistema de Gestión Integral — Registros en tiempo real</p>
+    </div>
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Conectando...</span>
+    </div>
+  </header>
+
+  <!-- FILTROS -->
+  <div class="filters">
+    <label>Período:</label>
+    <select id="filtroPeriodo">
+      <option value="todo">Todo</option>
+      <option value="hoy">Hoy</option>
+      <option value="semana">Última semana</option>
+      <option value="mes" selected>Este mes</option>
+      <option value="3meses">Últimos 3 meses</option>
+    </select>
+    <button class="btn-refresh" onclick="cargarDatos()">↺ ACTUALIZAR</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="section-title">Indicadores Clave</div>
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="loading"><div class="spinner"></div> Cargando...</div>
+  </div>
+
+  <!-- GRÁFICOS DE CUMPLIMIENTO -->
+  <div class="section-title">Cumplimiento por Registro</div>
+  <div class="charts-grid" id="chartsGrid">
+    <div class="loading"><div class="spinner"></div> Cargando...</div>
+  </div>
+
+  <!-- RESUMEN POR PERÍODO -->
+  <div class="section-title">Registros por Mes</div>
+  <div class="timeline-card" id="timelineCard">
+    <div class="loading"><div class="spinner"></div> Cargando...</div>
+  </div>
+
+  <!-- TABLA DE REGISTROS -->
+  <div class="section-title">Últimos Registros</div>
+  <div class="table-card">
+    <div class="table-header">
+      <h3>Detalle de registros</h3>
+      <div class="tab-btns" id="tabBtns"></div>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+      <div class="loading"><div class="spinner"></div> Cargando...</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbzUid1LOgPp0VeFpYxohk22exc3ZXsMOtF74zgAl2ZRNoc_H_r-JFZDQMAwGCtP3Iaa/exec";
+
+const REGISTROS = {
+  liberacion: { label: "Liberación de Producto", icon: "📦", camposCNC: ["Sanidad","Limpieza de Vegetal","Limpieza de Envase","Ausencia de Roturas","Cierre Correcto","Etiqueta Completa"] },
+  recepcion:  { label: "Control Recepción",       icon: "🚛", camposCNC: ["Documentación Obligatoria","Higiene","Ausencia de Elementos Ajenos","Estibado / Protección de Mercadería"] },
+  despacho:   { label: "Control Despacho",         icon: "🚚", camposCNC: ["Documentación Obligatoria","Higiene","Ausencia de Elementos Ajenos","Condiciones de Mercadería"] },
+  cloro:      { label: "Cloro y Desinfección",     icon: "🧪", camposCNC: [] }
+};
+
+let datosGlobales = {};
+let tabActiva = "liberacion";
+
+async function cargarDatos() {
+  setStatus("Actualizando...", false);
+  try {
+    const resp = await fetch(API_URL);
+    const data = await resp.json();
+    datosGlobales = data;
+    setStatus("Datos actualizados · " + new Date().toLocaleTimeString('es-AR'), true);
+    renderTodo();
+  } catch(e) {
+    setStatus("Error al conectar", false);
+    document.getElementById('kpiGrid').innerHTML = '<div class="empty">⚠️ No se pudo conectar con la fuente de datos.<br>Verificá que la Web App esté publicada correctamente.</div>';
+    document.getElementById('chartsGrid').innerHTML = '';
+    document.getElementById('timelineCard').innerHTML = '';
+    document.getElementById('tableWrap').innerHTML = '';
+  }
+}
+
+function setStatus(msg, ok) {
+  document.getElementById('statusText').textContent = msg;
+  document.getElementById('statusDot').style.background = ok ? 'var(--green)' : 'var(--yellow)';
+  document.getElementById('statusDot').style.boxShadow = ok ? '0 0 8px var(--green)' : '0 0 8px var(--yellow)';
+}
+
+function filtrarPorPeriodo(filas) {
+  const periodo = document.getElementById('filtroPeriodo').value;
+  if (periodo === 'todo') return filas;
+  const hoy = new Date();
+  return filas.filter(row => {
+    const fechaStr = row['Marca temporal'] || row['Fecha'] || '';
+    if (!fechaStr) return true;
+    const partes = fechaStr.split('/');
+    let fecha;
+    if (partes.length === 3) {
+      fecha = new Date(partes[2], partes[1]-1, partes[0]);
+    } else {
+      fecha = new Date(fechaStr);
+    }
+    if (isNaN(fecha)) return true;
+    const diff = (hoy - fecha) / (1000*60*60*24);
+    if (periodo === 'hoy') return diff < 1;
+    if (periodo === 'semana') return diff <= 7;
+    if (periodo === 'mes') return diff <= 31;
+    if (periodo === '3meses') return diff <= 90;
+    return true;
+  });
+}
+
+function calcularCumplimiento(filas, campos) {
+  if (!campos.length || !filas.length) return null;
+  let total = 0, cumple = 0;
+  filas.forEach(row => {
+    campos.forEach(campo => {
+      // buscar la columna que contenga el nombre del campo
+      const key = Object.keys(row).find(k => k.includes(campo.split(' ')[0]));
+      if (key) {
+        total++;
+        if ((row[key] || '').toString().toUpperCase() === 'C') cumple++;
+      }
+    });
+  });
+  return total > 0 ? Math.round((cumple/total)*100) : null;
+}
+
+function renderTodo() {
+  renderKPIs();
+  renderCharts();
+  renderTimeline();
+  renderTabs();
+  renderTabla(tabActiva);
+}
+
+function renderKPIs() {
+  const keys = Object.keys(REGISTROS);
+  let html = '';
+  let totalRegistros = 0;
+
+  keys.forEach(key => {
+    const filas = filtrarPorPeriodo(datosGlobales[key] || []);
+    totalRegistros += filas.length;
+    const pct = calcularCumplimiento(filas, REGISTROS[key].camposCNC);
+    const pctStr = pct !== null ? pct + '%' : 'N/A';
+    const color = pct === null ? 'var(--muted)' : pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)';
+    html += `
+      <div class="kpi-card">
+        <div class="kpi-icon">${REGISTROS[key].icon}</div>
+        <div class="kpi-label">${REGISTROS[key].label}</div>
+        <div class="kpi-value" style="color:${color};font-size:28px">${pctStr}</div>
+        <div class="kpi-sub">${filas.length} registro${filas.length !== 1 ? 's' : ''} en período</div>
+      </div>`;
+  });
+
+  // Total general
+  html = `<div class="kpi-card">
+    <div class="kpi-icon">📊</div>
+    <div class="kpi-label">Total Registros</div>
+    <div class="kpi-value">${totalRegistros}</div>
+    <div class="kpi-sub">en el período seleccionado</div>
+  </div>` + html;
+
+  document.getElementById('kpiGrid').innerHTML = html;
+}
+
+function renderCharts() {
+  let html = '';
+  Object.keys(REGISTROS).forEach(key => {
+    const reg = REGISTROS[key];
+    const filas = filtrarPorPeriodo(datosGlobales[key] || []);
+
+    if (!reg.camposCNC.length) {
+      // Para cloro: mostrar totales simples
+      html += `<div class="chart-card">
+        <div class="chart-title">${reg.icon} ${reg.label}<span>registros de desinfección</span></div>
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-family:Orbitron,monospace;font-size:40px;color:var(--accent)">${filas.length}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:8px">registros cargados</div>
+        </div>
+      </div>`;
+      return;
+    }
+
+    html += `<div class="chart-card">
+      <div class="chart-title">${reg.icon} ${reg.label}<span>cumplimiento C/NC por campo</span></div>
+      <div class="compliance-list">`;
+
+    reg.camposCNC.forEach(campo => {
+      let total = 0, cumple = 0;
+      filas.forEach(row => {
+        const key2 = Object.keys(row).find(k => k.includes(campo.split(' ')[0]));
+        if (key2) {
+          total++;
+          if ((row[key2] || '').toUpperCase() === 'C') cumple++;
+        }
+      });
+      const pct = total > 0 ? Math.round((cumple/total)*100) : 0;
+      const cls = pct >= 80 ? '' : pct >= 50 ? 'mid' : 'low';
+      const color = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)';
+      html += `
+        <div class="compliance-item">
+          <div class="compliance-header">
+            <span>${campo}</span>
+            <span class="compliance-pct" style="color:${color}">${total > 0 ? pct+'%' : '—'}</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill ${cls}" style="width:${pct}%"></div>
+          </div>
+        </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  document.getElementById('chartsGrid').innerHTML = html;
+}
+
+function renderTimeline() {
+  // Agrupar todos los registros por mes
+  const todos = [];
+  Object.keys(datosGlobales).forEach(key => {
+    (datosGlobales[key] || []).forEach(row => {
+      const fechaStr = row['Marca temporal'] || row['Fecha'] || '';
+      todos.push(fechaStr);
+    });
+  });
+
+  const meses = {};
+  todos.forEach(fechaStr => {
+    const partes = fechaStr.split('/');
+    let fecha;
+    if (partes.length === 3) fecha = new Date(partes[2], partes[1]-1, partes[0]);
+    else fecha = new Date(fechaStr);
+    if (isNaN(fecha)) return;
+    const key = `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}`;
+    meses[key] = (meses[key] || 0) + 1;
+  });
+
+  const keys = Object.keys(meses).sort().slice(-12);
+  if (!keys.length) {
+    document.getElementById('timelineCard').innerHTML = '<div class="empty">Sin datos suficientes para mostrar el resumen por período.</div>';
+    return;
+  }
+
+  const max = Math.max(...keys.map(k => meses[k]));
+  const MESES_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  let bars = keys.map(k => {
+    const [y, m] = k.split('-');
+    const label = MESES_ES[parseInt(m)-1] + ' ' + y.slice(2);
+    const h = Math.round((meses[k]/max)*70);
+    return `<div class="t-bar-wrap">
+      <div class="t-val">${meses[k]}</div>
+      <div class="t-bar" style="height:${h}px"></div>
+      <div class="t-label">${label}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('timelineCard').innerHTML = `
+    <div class="chart-title">Evolución mensual de registros<span>todos los formularios combinados</span></div>
+    <div class="timeline-bars">${bars}</div>`;
+}
+
+function renderTabs() {
+  const btns = Object.keys(REGISTROS).map(key =>
+    `<button class="tab-btn ${key === tabActiva ? 'active' : ''}" onclick="cambiarTab('${key}')">${REGISTROS[key].icon} ${REGISTROS[key].label.split(' ')[0]}</button>`
+  ).join('');
+  document.getElementById('tabBtns').innerHTML = btns;
+}
+
+function cambiarTab(key) {
+  tabActiva = key;
+  renderTabs();
+  renderTabla(key);
+}
+
+function renderTabla(key) {
+  const filas = filtrarPorPeriodo(datosGlobales[key] || []);
+  if (!filas.length) {
+    document.getElementById('tableWrap').innerHTML = '<div class="empty">Sin registros para este período.</div>';
+    return;
+  }
+
+  // Mostrar últimos 20
+  const muestra = filas.slice(-20).reverse();
+  const cols = Object.keys(muestra[0]);
+
+  let thead = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+  let tbody = muestra.map(row => {
+    const tds = cols.map(c => {
+      const v = row[c] || '';
+      if (v.toUpperCase() === 'C') return `<td><span class="badge badge-c">C</span></td>`;
+      if (v.toUpperCase() === 'NC') return `<td><span class="badge badge-nc">NC</span></td>`;
+      return `<td>${v}</td>`;
+    }).join('');
+    return `<tr>${tds}</tr>`;
+  }).join('');
+
+  document.getElementById('tableWrap').innerHTML = `
+    <table>
+      <thead>${thead}</thead>
+      <tbody>${tbody}</tbody>
+    </table>`;
+}
+
+// Iniciar
+document.getElementById('filtroPeriodo').addEventListener('change', renderTodo);
+cargarDatos();
+</script>
+</body>
+</html>
