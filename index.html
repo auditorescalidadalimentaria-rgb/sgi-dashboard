@@ -835,7 +835,7 @@ function renderColFiltros(key) {
   colFiltrosActivos = {};
   const filas = datosGlobales[key] || [];
   if (!filas.length) {
-    document.getElementById('colFiltros').innerHTML = '';
+    document.getElementById('colFiltros').innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0;">Sin datos cargados aún.</div>';
     return;
   }
 
@@ -847,50 +847,49 @@ function renderColFiltros(key) {
     cols = Object.keys(filas[0]);
   }
 
-  const inputStyle = `
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 11px;
-    outline: none;
-    width: 130px;
-  `;
+  const inputStyle = `background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:11px;outline:none;width:140px;`;
+  const labelStyle = `font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:3px;`;
 
-  const labelStyle = `
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    display: block;
-    margin-bottom: 3px;
-  `;
-
-  // Para campos C/NC usar select, para el resto texto
+  // Campos C/NC — solo tienen esas 2 opciones
   const camposCNC = ['Sanidad','Limpieza de Vegetal','Limpieza de Envase','Ausencia de Roturas',
     'Cierre Correcto','Etiqueta Completa','Documentación Obligatoria','Higiene',
     'Ausencia de Elementos Ajenos','Estibado / Protección de Mercadería','Condiciones de Mercadería'];
 
-  let html = `<div style="font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;width:100%;margin-bottom:4px;">🔍 Filtros por columna</div>`;
+  // Construir datalists con valores únicos por columna
+  let datalists = '';
+  let html = `<div style="font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;width:100%;margin-bottom:6px;">🔍 Filtros por columna</div>`;
 
   cols.forEach(col => {
+    const safeId = 'cf_' + col.replace(/[^a-zA-Z0-9]/g,'_');
+    const listId = 'dl_' + col.replace(/[^a-zA-Z0-9]/g,'_');
+    const shortName = col.length > 20 ? col.substring(0, 18) + '…' : col;
     const isCNC = camposCNC.includes(col);
-    const shortName = col.length > 18 ? col.substring(0, 16) + '…' : col;
+
     if (isCNC) {
+      // Select simple para C/NC
       html += `<div>
         <label style="${labelStyle}" title="${col}">${shortName}</label>
-        <select id="cf_${col.replace(/[^a-zA-Z0-9]/g,'_')}" onchange="aplicarColFiltros('${key}')" style="${inputStyle}">
+        <select id="${safeId}" onchange="aplicarColFiltros('${key}')" style="${inputStyle}">
           <option value="">Todos</option>
-          <option value="C">C</option>
-          <option value="NC">NC</option>
+          <option value="C">✅ C — Cumple</option>
+          <option value="NC">❌ NC — No Cumple</option>
         </select>
       </div>`;
     } else {
+      // Obtener valores únicos no vacíos de esta columna
+      const valores = [...new Set(
+        filas.map(r => (r[col] || '').toString().trim()).filter(v => v !== '')
+      )].sort();
+
+      // Construir datalist
+      datalists += `<datalist id="${listId}">${valores.map(v => `<option value="${v}">`).join('')}</datalist>`;
+
+      // Input con datalist (combo: escribir o elegir de lista)
       html += `<div>
         <label style="${labelStyle}" title="${col}">${shortName}</label>
-        <input type="text" id="cf_${col.replace(/[^a-zA-Z0-9]/g,'_')}" placeholder="Filtrar..." oninput="aplicarColFiltros('${key}')" style="${inputStyle}" />
+        <input type="text" id="${safeId}" list="${listId}" placeholder="Todos..." 
+          oninput="aplicarColFiltros('${key}')" 
+          style="${inputStyle}" autocomplete="off" />
       </div>`;
     }
   });
@@ -899,8 +898,7 @@ function renderColFiltros(key) {
     <button onclick="limpiarColFiltros('${key}')" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">✕ Limpiar</button>
   </div>`;
 
-  document.getElementById('colFiltros').innerHTML = html;
-  // Guardar referencia de cols
+  document.getElementById('colFiltros').innerHTML = datalists + html;
   document.getElementById('colFiltros').dataset.cols = JSON.stringify(cols);
 }
 
