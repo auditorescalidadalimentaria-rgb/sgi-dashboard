@@ -531,7 +531,9 @@
       <option value="semana">Última semana</option>
       <option value="mes" selected>Este mes</option>
       <option value="3meses">Últimos 3 meses</option>
+      <option value="fecha">Día específico...</option>
     </select>
+    <input type="date" id="fechaEspecifica" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:6px;font-family:DM Sans,sans-serif;font-size:13px;outline:none;" />
     <button class="btn-refresh" onclick="cargarDatos()">↺ ACTUALIZAR</button>
   </div>
 
@@ -560,6 +562,8 @@
       <h3>Detalle de registros</h3>
       <div class="tab-btns" id="tabBtns"></div>
     </div>
+    <!-- FILTROS POR COLUMNA -->
+    <div id="colFiltros" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;"></div>
     <div class="table-wrap" id="tableWrap">
       <div class="loading"><div class="spinner"></div> Cargando...</div>
     </div>
@@ -638,6 +642,12 @@ function filtrarPorPeriodo(filas) {
     if (periodo === 'semana') return diff <= 7;
     if (periodo === 'mes') return diff <= 31;
     if (periodo === '3meses') return diff <= 90;
+    if (periodo === 'fecha') {
+      const selStr = document.getElementById('fechaEspecifica').value;
+      if (!selStr) return true;
+      const sel = new Date(selStr + 'T00:00:00');
+      return fecha.toDateString() === sel.toDateString();
+    }
     return true;
   });
 }
@@ -663,6 +673,7 @@ function renderTodo() {
   renderCharts();
   renderTimeline();
   renderTabs();
+  renderColFiltros(tabActiva);
   renderTabla(tabActiva);
 }
 
@@ -805,24 +816,152 @@ function renderTabs() {
 function cambiarTab(key) {
   tabActiva = key;
   renderTabs();
+  renderColFiltros(key);
+  renderTabla(key);
+}
+
+// Columnas fijas para Liberación de Producto
+const COLS_LIBERACION = [
+  'Marca temporal','Fecha','Elegir Línea','Número de Vale','Producto',
+  'Código Productor','Peso Unitario (g)','Peso Procesado (Kg)',
+  'Sanidad','Limpieza de Vegetal','Limpieza de Envase',
+  'Ausencia de Roturas','Cierre Correcto','Etiqueta Completa',
+  'Reproceso','Firma y Aclaración Responsable'
+];
+
+let colFiltrosActivos = {};
+
+function renderColFiltros(key) {
+  colFiltrosActivos = {};
+  const filas = datosGlobales[key] || [];
+  if (!filas.length) {
+    document.getElementById('colFiltros').innerHTML = '';
+    return;
+  }
+
+  // Para liberacion usar columnas fijas, para el resto usar las del sheet
+  let cols;
+  if (key === 'liberacion') {
+    cols = COLS_LIBERACION.filter(c => filas.some(r => r[c] !== undefined));
+  } else {
+    cols = Object.keys(filas[0]);
+  }
+
+  const inputStyle = `
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    outline: none;
+    width: 130px;
+  `;
+
+  const labelStyle = `
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 3px;
+  `;
+
+  // Para campos C/NC usar select, para el resto texto
+  const camposCNC = ['Sanidad','Limpieza de Vegetal','Limpieza de Envase','Ausencia de Roturas',
+    'Cierre Correcto','Etiqueta Completa','Documentación Obligatoria','Higiene',
+    'Ausencia de Elementos Ajenos','Estibado / Protección de Mercadería','Condiciones de Mercadería'];
+
+  let html = `<div style="font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;width:100%;margin-bottom:4px;">🔍 Filtros por columna</div>`;
+
+  cols.forEach(col => {
+    const isCNC = camposCNC.includes(col);
+    const shortName = col.length > 18 ? col.substring(0, 16) + '…' : col;
+    if (isCNC) {
+      html += `<div>
+        <label style="${labelStyle}" title="${col}">${shortName}</label>
+        <select id="cf_${col.replace(/[^a-zA-Z0-9]/g,'_')}" onchange="aplicarColFiltros('${key}')" style="${inputStyle}">
+          <option value="">Todos</option>
+          <option value="C">C</option>
+          <option value="NC">NC</option>
+        </select>
+      </div>`;
+    } else {
+      html += `<div>
+        <label style="${labelStyle}" title="${col}">${shortName}</label>
+        <input type="text" id="cf_${col.replace(/[^a-zA-Z0-9]/g,'_')}" placeholder="Filtrar..." oninput="aplicarColFiltros('${key}')" style="${inputStyle}" />
+      </div>`;
+    }
+  });
+
+  html += `<div style="align-self:flex-end">
+    <button onclick="limpiarColFiltros('${key}')" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">✕ Limpiar</button>
+  </div>`;
+
+  document.getElementById('colFiltros').innerHTML = html;
+  // Guardar referencia de cols
+  document.getElementById('colFiltros').dataset.cols = JSON.stringify(cols);
+}
+
+function aplicarColFiltros(key) {
+  const colsStr = document.getElementById('colFiltros').dataset.cols;
+  if (!colsStr) return;
+  const cols = JSON.parse(colsStr);
+  colFiltrosActivos = {};
+  cols.forEach(col => {
+    const el = document.getElementById('cf_' + col.replace(/[^a-zA-Z0-9]/g,'_'));
+    if (el && el.value.trim() !== '') {
+      colFiltrosActivos[col] = el.value.trim().toLowerCase();
+    }
+  });
+  renderTabla(key);
+}
+
+function limpiarColFiltros(key) {
+  const colsStr = document.getElementById('colFiltros').dataset.cols;
+  if (!colsStr) return;
+  const cols = JSON.parse(colsStr);
+  cols.forEach(col => {
+    const el = document.getElementById('cf_' + col.replace(/[^a-zA-Z0-9]/g,'_'));
+    if (el) el.value = '';
+  });
+  colFiltrosActivos = {};
   renderTabla(key);
 }
 
 function renderTabla(key) {
-  const filas = filtrarPorPeriodo(datosGlobales[key] || []);
+  let filas = filtrarPorPeriodo(datosGlobales[key] || []);
+
+  // Aplicar filtros por columna
+  if (Object.keys(colFiltrosActivos).length > 0) {
+    filas = filas.filter(row => {
+      return Object.entries(colFiltrosActivos).every(([col, val]) => {
+        const cellVal = (row[col] || '').toString().toLowerCase();
+        return cellVal.includes(val);
+      });
+    });
+  }
+
   if (!filas.length) {
-    document.getElementById('tableWrap').innerHTML = '<div class="empty">Sin registros para este período.</div>';
+    document.getElementById('tableWrap').innerHTML = '<div class="empty">Sin registros para este período o filtro.</div>';
     return;
   }
 
-  // Mostrar últimos 20
-  const muestra = filas.slice(-20).reverse();
-  const cols = Object.keys(muestra[0]);
+  // Para liberacion usar columnas fijas, para el resto usar las del sheet
+  let cols;
+  if (key === 'liberacion') {
+    cols = COLS_LIBERACION.filter(c => filas.some(r => r[c] !== undefined));
+  } else {
+    cols = Object.keys(filas[0]);
+  }
 
-  let thead = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+  const muestra = filas.slice(-50).reverse();
+
+  let thead = '<tr>' + cols.map(c => `<th title="${c}">${c}</th>`).join('') + '</tr>';
   let tbody = muestra.map(row => {
     const tds = cols.map(c => {
-      const v = row[c] || '';
+      const v = (row[c] || '').toString();
       if (v.toUpperCase() === 'C') return `<td><span class="badge badge-c">C</span></td>`;
       if (v.toUpperCase() === 'NC') return `<td><span class="badge badge-nc">NC</span></td>`;
       return `<td>${v}</td>`;
@@ -838,7 +977,13 @@ function renderTabla(key) {
 }
 
 // Iniciar
-document.getElementById('filtroPeriodo').addEventListener('change', renderTodo);
+document.getElementById('filtroPeriodo').addEventListener('change', function() {
+  const val = this.value;
+  const picker = document.getElementById('fechaEspecifica');
+  picker.style.display = val === 'fecha' ? 'inline-block' : 'none';
+  if (val !== 'fecha') renderTodo();
+});
+document.getElementById('fechaEspecifica').addEventListener('change', renderTodo);
 cargarDatos();
 </script>
 </body>
